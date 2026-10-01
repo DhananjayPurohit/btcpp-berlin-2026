@@ -1,0 +1,564 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paid APIs with Lightning · bitcoin++ Berlin 2026</title>
+<meta name="description" content="Slides from Dhananjay Purohit's talk at bitcoin++ Berlin, 1 October 2026: HTTP 402, agentic payments, and lessons from building ngx-l402.">
+<link rel="icon" href="logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;background:#16170f;overflow:hidden}
+#stage{position:absolute;left:50%;top:50%;width:1920px;height:1080px;transform-origin:0 0}
+#stage>section{position:absolute;inset:0;width:1920px;height:1080px;overflow:hidden}
+#stage>section:not(.on){display:none!important}
+x-shape{display:block}
+x-shape[kind="arrow-right"]{clip-path:polygon(0 0,100% 50%,0 100%)}
+x-shape[kind="arrow-left"]{clip-path:polygon(100% 0,0 50%,100% 100%)}
+#bar{position:fixed;right:16px;bottom:12px;font:14px 'JetBrains Mono',monospace;color:#9a9a8a;user-select:none}
+#bar button{background:none;border:0;color:inherit;font:inherit;cursor:pointer;padding:4px 8px}
+</style>
+</head>
+<body>
+<div id="stage">
+<section id="cover" data-transition="fade" style="background:#fbfaf7">
+  <div style="position:absolute; right:128px; top:104px; display:flex; flex-direction:row; gap:16px; align-items:center"><img src="logo.png" alt="ngx-l402 logo" style="width:96px; height:96px; object-fit:cover"><p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:36px; font-weight:700; color:#16170f">ngx-l402</p></div>
+  <p style="position:absolute; top:200px; left:960px; width:832px; font-family:'Inter', Arial, sans-serif; font-size:400px; font-weight:600; line-height:1; letter-spacing:-12px; text-align:right; -webkit-text-stroke:3px #e4e0d6; color:#00000000">402</p>
+  <p id="4c8e00e7" style="position:absolute; top:128px; left:128px; width:1100px; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:30px; color:#358730">HTTP/1.1 402 Payment Required</p>
+  <div id="4dfd75be" style="position:absolute; top:369px; left:128px; width:1664px; height:341px; display:flex; flex-direction:column; gap:32px">
+    <h1 style="font-family:'Inter', Arial, sans-serif; font-size:120px; font-weight:600; line-height:1.05; letter-spacing:-3px; color:#16170f">Paid APIs<br>with Lightning</h1>
+    <p style="width:1300px; font-family:'Inter', Arial, sans-serif; font-size:44px; line-height:1.3; color:#3a3a30">HTTP 402, agentic payments, and lessons from building ngx-l402</p>
+  </div>
+  <div id="ee44e415" style="position:absolute; top:910px; left:128px; width:1664px; height:42px; display:flex; flex-direction:row; gap:48px; align-items:end; justify-content:space-between">
+    <p style="font-family:'Inter', Arial, sans-serif; font-size:30px; color:#16170f">Dhananjay Purohit · maintainer of ngx-l402</p>
+    <p style="font-family:'Inter', Arial, sans-serif; font-size:30px; color:#6b6b5c">bitcoin++ Berlin · 1 October 2026</p>
+  </div>
+  </section>
+<section id="demo" data-transition="fade" style="display:flex; flex-direction:column; justify-content:space-between; padding:128px 128px 160px; background:#fbfaf7">
+  <div style="display:flex; flex-direction:column; gap:24px">
+    <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; font-weight:700; letter-spacing:2px; color:#358730">LIVE DEMO</p>
+    <h2 style="font-family:'Inter', Arial, sans-serif; font-size:72px; font-weight:600; line-height:1.1; letter-spacing:-1.6px; color:#16170f">Watch an agent buy a short link</h2>
+  </div>
+  <div style="display:flex; flex-direction:row; gap:32px">
+    <div style="display:flex; flex-direction:column; gap:16px; flex:1; padding:40px; background:#fffefb; border:1px solid #e4e0d6; border-radius:16px">
+      <p style="font-family:'Inter', Arial, sans-serif; font-size:24px; font-weight:600; letter-spacing:2px; color:#6b6b5c">IT GETS</p>
+      <h3 style="font-family:'Inter', Arial, sans-serif; font-size:44px; font-weight:600; line-height:1.2; color:#16170f">One sentence and a budget</h3>
+      <p style="font-family:'Inter', Arial, sans-serif; font-size:30px; line-height:1.4; color:#3a3a30">200 sats. The name costs 500.</p>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:16px; flex:1; padding:40px; background:#fffefb; border:1px solid #e4e0d6; border-radius:16px">
+      <p style="font-family:'Inter', Arial, sans-serif; font-size:24px; font-weight:600; letter-spacing:2px; color:#6b6b5c">IT HAS</p>
+      <h3 style="font-family:'Inter', Arial, sans-serif; font-size:44px; font-weight:600; line-height:1.2; color:#16170f">A Nostr key and a wallet</h3>
+      <p style="font-family:'Inter', Arial, sans-serif; font-size:30px; line-height:1.4; color:#3a3a30">It never sees the key. The wallet stops at 800 sats.</p>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:16px; flex:1; padding:40px; background:#fffefb; border:1px solid #e4e0d6; border-radius:16px">
+      <p style="font-family:'Inter', Arial, sans-serif; font-size:24px; font-weight:600; letter-spacing:2px; color:#6b6b5c">IT DOESN'T HAVE</p>
+      <h3 style="font-family:'Inter', Arial, sans-serif; font-size:44px; font-weight:600; line-height:1.2; color:#16170f">An account or an API key</h3>
+      <p style="font-family:'Inter', Arial, sans-serif; font-size:30px; line-height:1.4; color:#3a3a30">at sqzit.in, or anywhere else</p>
+    </div>
+  </div>
+  <div style="display:flex; flex-direction:column; gap:20px; padding:24px 40px 32px; background:#11130b; border:1px solid #2b2d20; border-radius:16px; color:#e6e4d6">
+    <div style="display:flex; flex-direction:row; gap:12px; align-items:center">
+      <div style="width:18px; height:18px; display:flex; flex-direction:column; background:#ff5f57; border-radius:256px">
+      </div>
+      <div style="width:18px; height:18px; display:flex; flex-direction:column; background:#febc2e; border-radius:256px">
+      </div>
+      <div style="width:18px; height:18px; display:flex; flex-direction:column; background:#28c840; border-radius:256px">
+      </div>
+      <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; color:#7e7e6a">~/sqz-agent · claude</p>
+    </div>
+    <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:30px; line-height:1.5; color:#feca0a">&gt; Make the short link sqzit.in/btcpp point to ngx-l402.org/#try so this room can scan it. Your budget is 200 sats.</p>
+  </div>
+  <p style="position:absolute; bottom:64px; left:128px; width:1664px; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; text-align:right; color:#6b6b5c">ngx-l402.org</p>
+  <div style="position:absolute; right:128px; top:96px; display:flex; flex-direction:row; gap:24px; align-items:center"><p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:30px; line-height:1.4; text-align:right; color:#358730">sqzit.in/btcpp<br><span style="font-size:24px; color:#6b6b5c">scan once it's bought</span></p><svg viewBox="0 0 33 33" width="200" height="200" shape-rendering="crispEdges" style="display:block; border-radius:16px"><rect width="33" height="33" fill="#ffffff"/><path d="M4 4h1v1h-1zM5 4h1v1h-1zM6 4h1v1h-1zM7 4h1v1h-1zM8 4h1v1h-1zM9 4h1v1h-1zM10 4h1v1h-1zM12 4h1v1h-1zM13 4h1v1h-1zM14 4h1v1h-1zM17 4h1v1h-1zM18 4h1v1h-1zM22 4h1v1h-1zM23 4h1v1h-1zM24 4h1v1h-1zM25 4h1v1h-1zM26 4h1v1h-1zM27 4h1v1h-1zM28 4h1v1h-1zM4 5h1v1h-1zM10 5h1v1h-1zM12 5h1v1h-1zM14 5h1v1h-1zM16 5h1v1h-1zM18 5h1v1h-1zM20 5h1v1h-1zM22 5h1v1h-1zM28 5h1v1h-1zM4 6h1v1h-1zM6 6h1v1h-1zM7 6h1v1h-1zM8 6h1v1h-1zM10 6h1v1h-1zM12 6h1v1h-1zM13 6h1v1h-1zM14 6h1v1h-1zM16 6h1v1h-1zM17 6h1v1h-1zM22 6h1v1h-1zM24 6h1v1h-1zM25 6h1v1h-1zM26 6h1v1h-1zM28 6h1v1h-1zM4 7h1v1h-1zM6 7h1v1h-1zM7 7h1v1h-1zM8 7h1v1h-1zM10 7h1v1h-1zM14 7h1v1h-1zM17 7h1v1h-1zM19 7h1v1h-1zM20 7h1v1h-1zM22 7h1v1h-1zM24 7h1v1h-1zM25 7h1v1h-1zM26 7h1v1h-1zM28 7h1v1h-1zM4 8h1v1h-1zM6 8h1v1h-1zM7 8h1v1h-1zM8 8h1v1h-1zM10 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM15 8h1v1h-1zM22 8h1v1h-1zM24 8h1v1h-1zM25 8h1v1h-1zM26 8h1v1h-1zM28 8h1v1h-1zM4 9h1v1h-1zM10 9h1v1h-1zM18 9h1v1h-1zM20 9h1v1h-1zM22 9h1v1h-1zM28 9h1v1h-1zM4 10h1v1h-1zM5 10h1v1h-1zM6 10h1v1h-1zM7 10h1v1h-1zM8 10h1v1h-1zM9 10h1v1h-1zM10 10h1v1h-1zM12 10h1v1h-1zM14 10h1v1h-1zM16 10h1v1h-1zM18 10h1v1h-1zM20 10h1v1h-1zM22 10h1v1h-1zM23 10h1v1h-1zM24 10h1v1h-1zM25 10h1v1h-1zM26 10h1v1h-1zM27 10h1v1h-1zM28 10h1v1h-1zM13 11h1v1h-1zM14 11h1v1h-1zM15 11h1v1h-1zM16 11h1v1h-1zM17 11h1v1h-1zM18 11h1v1h-1zM19 11h1v1h-1zM20 11h1v1h-1zM4 12h1v1h-1zM7 12h1v1h-1zM8 12h1v1h-1zM9 12h1v1h-1zM10 12h1v1h-1zM11 12h1v1h-1zM12 12h1v1h-1zM13 12h1v1h-1zM18 12h1v1h-1zM20 12h1v1h-1zM21 12h1v1h-1zM24 12h1v1h-1zM26 12h1v1h-1zM27 12h1v1h-1zM28 12h1v1h-1zM4 13h1v1h-1zM6 13h1v1h-1zM7 13h1v1h-1zM9 13h1v1h-1zM12 13h1v1h-1zM13 13h1v1h-1zM14 13h1v1h-1zM16 13h1v1h-1zM18 13h1v1h-1zM19 13h1v1h-1zM21 13h1v1h-1zM23 13h1v1h-1zM24 13h1v1h-1zM25 13h1v1h-1zM26 13h1v1h-1zM27 13h1v1h-1zM5 14h1v1h-1zM6 14h1v1h-1zM7 14h1v1h-1zM8 14h1v1h-1zM9 14h1v1h-1zM10 14h1v1h-1zM11 14h1v1h-1zM13 14h1v1h-1zM15 14h1v1h-1zM17 14h1v1h-1zM18 14h1v1h-1zM19 14h1v1h-1zM20 14h1v1h-1zM21 14h1v1h-1zM22 14h1v1h-1zM23 14h1v1h-1zM25 14h1v1h-1zM28 14h1v1h-1zM5 15h1v1h-1zM6 15h1v1h-1zM11 15h1v1h-1zM14 15h1v1h-1zM18 15h1v1h-1zM20 15h1v1h-1zM22 15h1v1h-1zM25 15h1v1h-1zM26 15h1v1h-1zM27 15h1v1h-1zM28 15h1v1h-1zM5 16h1v1h-1zM6 16h1v1h-1zM7 16h1v1h-1zM8 16h1v1h-1zM9 16h1v1h-1zM10 16h1v1h-1zM15 16h1v1h-1zM20 16h1v1h-1zM22 16h1v1h-1zM28 16h1v1h-1zM4 17h1v1h-1zM6 17h1v1h-1zM11 17h1v1h-1zM12 17h1v1h-1zM13 17h1v1h-1zM16 17h1v1h-1zM17 17h1v1h-1zM19 17h1v1h-1zM20 17h1v1h-1zM21 17h1v1h-1zM24 17h1v1h-1zM27 17h1v1h-1zM4 18h1v1h-1zM5 18h1v1h-1zM8 18h1v1h-1zM10 18h1v1h-1zM11 18h1v1h-1zM12 18h1v1h-1zM14 18h1v1h-1zM17 18h1v1h-1zM19 18h1v1h-1zM20 18h1v1h-1zM24 18h1v1h-1zM25 18h1v1h-1zM26 18h1v1h-1zM27 18h1v1h-1zM28 18h1v1h-1zM4 19h1v1h-1zM6 19h1v1h-1zM7 19h1v1h-1zM8 19h1v1h-1zM12 19h1v1h-1zM16 19h1v1h-1zM18 19h1v1h-1zM19 19h1v1h-1zM23 19h1v1h-1zM25 19h1v1h-1zM26 19h1v1h-1zM28 19h1v1h-1zM4 20h1v1h-1zM6 20h1v1h-1zM7 20h1v1h-1zM9 20h1v1h-1zM10 20h1v1h-1zM12 20h1v1h-1zM13 20h1v1h-1zM14 20h1v1h-1zM15 20h1v1h-1zM16 20h1v1h-1zM17 20h1v1h-1zM20 20h1v1h-1zM21 20h1v1h-1zM22 20h1v1h-1zM23 20h1v1h-1zM24 20h1v1h-1zM26 20h1v1h-1zM27 20h1v1h-1zM12 21h1v1h-1zM13 21h1v1h-1zM14 21h1v1h-1zM15 21h1v1h-1zM18 21h1v1h-1zM20 21h1v1h-1zM24 21h1v1h-1zM26 21h1v1h-1zM27 21h1v1h-1zM4 22h1v1h-1zM5 22h1v1h-1zM6 22h1v1h-1zM7 22h1v1h-1zM8 22h1v1h-1zM9 22h1v1h-1zM10 22h1v1h-1zM12 22h1v1h-1zM13 22h1v1h-1zM16 22h1v1h-1zM17 22h1v1h-1zM18 22h1v1h-1zM20 22h1v1h-1zM22 22h1v1h-1zM24 22h1v1h-1zM28 22h1v1h-1zM4 23h1v1h-1zM10 23h1v1h-1zM12 23h1v1h-1zM13 23h1v1h-1zM14 23h1v1h-1zM15 23h1v1h-1zM17 23h1v1h-1zM18 23h1v1h-1zM20 23h1v1h-1zM24 23h1v1h-1zM4 24h1v1h-1zM6 24h1v1h-1zM7 24h1v1h-1zM8 24h1v1h-1zM10 24h1v1h-1zM12 24h1v1h-1zM13 24h1v1h-1zM15 24h1v1h-1zM17 24h1v1h-1zM19 24h1v1h-1zM20 24h1v1h-1zM21 24h1v1h-1zM22 24h1v1h-1zM23 24h1v1h-1zM24 24h1v1h-1zM27 24h1v1h-1zM28 24h1v1h-1zM4 25h1v1h-1zM6 25h1v1h-1zM7 25h1v1h-1zM8 25h1v1h-1zM10 25h1v1h-1zM12 25h1v1h-1zM16 25h1v1h-1zM17 25h1v1h-1zM18 25h1v1h-1zM20 25h1v1h-1zM21 25h1v1h-1zM22 25h1v1h-1zM27 25h1v1h-1zM28 25h1v1h-1zM4 26h1v1h-1zM6 26h1v1h-1zM7 26h1v1h-1zM8 26h1v1h-1zM10 26h1v1h-1zM14 26h1v1h-1zM15 26h1v1h-1zM17 26h1v1h-1zM21 26h1v1h-1zM24 26h1v1h-1zM25 26h1v1h-1zM26 26h1v1h-1zM27 26h1v1h-1zM28 26h1v1h-1zM4 27h1v1h-1zM10 27h1v1h-1zM15 27h1v1h-1zM16 27h1v1h-1zM17 27h1v1h-1zM19 27h1v1h-1zM21 27h1v1h-1zM23 27h1v1h-1zM24 27h1v1h-1zM26 27h1v1h-1zM27 27h1v1h-1zM28 27h1v1h-1zM4 28h1v1h-1zM5 28h1v1h-1zM6 28h1v1h-1zM7 28h1v1h-1zM8 28h1v1h-1zM9 28h1v1h-1zM10 28h1v1h-1zM12 28h1v1h-1zM14 28h1v1h-1zM15 28h1v1h-1zM16 28h1v1h-1zM17 28h1v1h-1zM20 28h1v1h-1zM22 28h1v1h-1zM25 28h1v1h-1zM28 28h1v1h-1z" fill="#12151C"/></svg></div>
+  </section>
+<section id="log" data-transition="fade" style="background:#fbfaf7; color:#16170f; font-family:'Inter', Arial, sans-serif; padding:128px 128px 160px; display:flex; flex-direction:column">
+  <div style="display:flex; flex-direction:column; gap:24px">
+    <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; font-weight:700; letter-spacing:2px; color:#358730">WHAT JUST HAPPENED</p>
+    <h2 style="font-family:'Inter', Arial, sans-serif; font-size:72px; font-weight:600; line-height:1.1; letter-spacing:-1.6px">What Claude just did</h2>
+  </div>
+  <div style="position:absolute; left:128px; top:310px; width:1664px; height:470px; background:#fffefb; border:1px solid #e4e0d6; border-radius:16px"></div>
+  <div style="position:absolute; left:176px; top:350px; width:1568px; display:flex; flex-direction:row; gap:32px; align-items:baseline">
+    <p style="width:56px; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:30px; font-weight:700; color:#6b6b5c">01</p>
+    <p style="width:560px; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:30px">./sqz available btcpp</p>
+    <p style="flex:1; font-size:30px; color:#3a3a30">Checked that sqzit.in/btcpp was free</p>
+  </div>
+  <div style="position:absolute; left:176px; top:440px; width:1568px; display:flex; flex-direction:row; gap:32px; align-items:baseline">
+    <p style="width:56px; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:30px; font-weight:700; color:#6b6b5c">02</p>
+    <p style="width:560px; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:30px">./sqz sign</p>
+    <p style="flex:1; font-size:30px; color:#3a3a30">Signed the link: a Nostr event it owns</p>
+  </div>
+  <div style="position:absolute; left:176px; top:530px; width:1568px; display:flex; flex-direction:row; gap:32px; align-items:baseline">
+    <p style="width:56px; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:30px; font-weight:700; color:#6b6b5c">03</p>
+    <p style="width:560px; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:30px">./sqz custom <span style="color:#358730">402</span></p>
+    <p style="flex:1; font-size:30px; color:#3a3a30">Got a 500-sat invoice, over budget, so it asked</p>
+  </div>
+  <div style="position:absolute; left:176px; top:620px; width:1568px; display:flex; flex-direction:row; gap:32px; align-items:baseline">
+    <p style="width:56px; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:30px; font-weight:700; color:#6b6b5c">04</p>
+    <p style="width:560px; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:30px">pay_invoice → <span style="color:#358730">preimage</span></p>
+    <p style="flex:1; font-size:30px; color:#3a3a30">Paid from a wallet capped at 800 sats</p>
+  </div>
+  <div style="position:absolute; left:176px; top:710px; width:1568px; display:flex; flex-direction:row; gap:32px; align-items:baseline">
+    <p style="width:56px; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:30px; font-weight:700; color:#6b6b5c">05</p>
+    <p style="width:560px; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:30px">./sqz custom + L402 <span style="color:#2e7d32">200</span></p>
+    <p style="flex:1; font-size:30px; color:#3a3a30">Showed the receipt, got sqzit.in/btcpp</p>
+  </div>
+  <p style="position:absolute; left:128px; top:820px; width:1664px; font-family:'Inter', Arial, sans-serif; font-size:44px; font-weight:600; line-height:1.25">Identity from a signature, payment from Lightning. No account anywhere.</p>
+  <p style="position:absolute; left:128px; bottom:64px; width:1664px; text-align:right; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; color:#6b6b5c">ngx-l402.org</p>
+  </section>
+<section id="status402" data-transition="fade" style="background:#fbfaf7; color:#16170f; font-family:'Inter', Arial, sans-serif; padding:128px 128px 160px; display:flex; flex-direction:column">
+  <div style="display:flex; flex-direction:column; gap:24px">
+    <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; font-weight:700; letter-spacing:2px; color:#358730">HTTP STATUS 402</p>
+    <h2 style="font-family:'Inter', Arial, sans-serif; font-size:72px; font-weight:600; line-height:1.1; letter-spacing:-1.6px">Payment Required, reserved in 1997</h2>
+  </div>
+  <div style="position:absolute; left:294px; top:598px; width:1332px; height:4px; background:#d9d5c8"></div>
+  <p style="position:absolute; left:134px; top:496px; width:320px; text-align:center; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:44px; font-weight:700">1997</p>
+  <div style="position:absolute; left:280px; top:586px; width:28px; height:28px; border-radius:50%; background:#9a9a8a"></div>
+  <p style="position:absolute; left:134px; top:640px; width:320px; text-align:center; font-size:30px; line-height:1.4; color:#3a3a30">HTTP/1.1:<br>“reserved for future use”</p>
+  <p style="position:absolute; left:467px; top:496px; width:320px; text-align:center; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:44px; font-weight:700">1999</p>
+  <div style="position:absolute; left:613px; top:586px; width:28px; height:28px; border-radius:50%; background:#9a9a8a"></div>
+  <p style="position:absolute; left:467px; top:640px; width:320px; text-align:center; font-size:30px; line-height:1.4; color:#3a3a30">RFC 2616<br>still reserved</p>
+  <p style="position:absolute; left:800px; top:496px; width:320px; text-align:center; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:44px; font-weight:700">2014</p>
+  <div style="position:absolute; left:946px; top:586px; width:28px; height:28px; border-radius:50%; background:#9a9a8a"></div>
+  <p style="position:absolute; left:800px; top:640px; width:320px; text-align:center; font-size:30px; line-height:1.4; color:#3a3a30">RFC 7231<br>still reserved</p>
+  <p style="position:absolute; left:1133px; top:496px; width:320px; text-align:center; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:44px; font-weight:700; color:#358730">2020</p>
+  <div style="position:absolute; left:1279px; top:586px; width:28px; height:28px; border-radius:50%; background:#358730; color:#fbfaf7"></div>
+  <p style="position:absolute; left:1133px; top:640px; width:320px; text-align:center; font-size:30px; line-height:1.4; color:#16170f">Lightning Labs:<br>LSAT, now L402</p>
+  <p style="position:absolute; left:1466px; top:496px; width:320px; text-align:center; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:44px; font-weight:700; color:#358730">2023</p>
+  <div style="position:absolute; left:1608px; top:582px; width:36px; height:36px; border-radius:50%; background:#358730; color:#fbfaf7"></div>
+  <p style="position:absolute; left:1466px; top:640px; width:320px; text-align:center; font-size:30px; line-height:1.4; color:#16170f">AI agents pay<br>L402 APIs</p>
+  <p style="position:absolute; left:128px; top:810px; width:1664px; font-family:'Inter', Arial, sans-serif; font-size:44px; font-weight:600; line-height:1.25">The spec still says “reserved”. Lightning didn't wait.</p>
+  <p style="position:absolute; left:128px; bottom:64px; width:1664px; text-align:right; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; color:#6b6b5c">ngx-l402.org</p>
+  </section>
+<section id="whynot" data-transition="fade" style="background:#f4f2ed; color:#16170f; font-family:'Inter', Arial, sans-serif; padding:128px 128px 160px; display:flex; flex-direction:column">
+  <div style="display:flex; flex-direction:column; gap:24px">
+    <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; font-weight:700; letter-spacing:2px; color:#358730">WHY IT WAITED</p>
+    <h2 style="font-family:'Inter', Arial, sans-serif; font-size:72px; font-weight:600; line-height:1.1; letter-spacing:-1.6px">Micropayments kept failing</h2>
+  </div>
+  <p style="position:absolute; left:128px; top:318px; width:600px; font-size:24px; font-weight:600; letter-spacing:2px; color:#6b6b5c">THE RAILS</p>
+  <div style="position:absolute; left:128px; top:364px; width:1300px; height:64px; background:#feca0a; border-radius:8px; display:flex; align-items:center; padding:0px 24px; color:#16170f">
+    <p style="font-size:30px; font-weight:600; color:#16170f">30¢: the fixed part of a typical card fee</p>
+  </div>
+  <div style="position:absolute; left:128px; top:444px; width:6px; height:64px; background:#11130b; border-radius:2px; color:#e6e4d6"></div>
+  <p style="position:absolute; left:156px; top:454px; width:1200px; font-size:30px; font-weight:600">0.1¢: the API call it would pay for</p>
+  <p style="position:absolute; left:128px; top:562px; width:600px; font-size:24px; font-weight:600; letter-spacing:2px; color:#6b6b5c">THE PEOPLE</p>
+  <p style="position:absolute; left:128px; top:604px; width:1664px; font-family:'Inter', Arial, sans-serif; font-size:72px; font-weight:600; font-style:italic; line-height:1.1">Is this click worth a cent?</p>
+  <p style="position:absolute; left:128px; top:700px; width:1450px; font-size:30px; line-height:1.4; color:#3a3a30">Asking costs people attention, so they pick flat fees. Nick Szabo, “Micropayments and Mental Transaction Costs”, 1999.</p>
+  <p style="position:absolute; left:128px; top:808px; width:1664px; font-size:30px; font-weight:600; line-height:1.4; color:#358730">He presented that paper here, in Berlin.</p>
+  <p style="position:absolute; left:128px; bottom:64px; width:1664px; text-align:right; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; color:#6b6b5c">ngx-l402.org</p>
+  </section>
+<section id="whynow" data-transition="fade" style="background:#fbfaf7; color:#16170f; font-family:'Inter', Arial, sans-serif; padding:128px 128px 160px; display:flex; flex-direction:column; justify-content:space-between">
+  <div style="display:flex; flex-direction:column; gap:24px">
+    <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; font-weight:700; letter-spacing:2px; color:#358730">WHAT CHANGED</p>
+    <h2 style="font-family:'Inter', Arial, sans-serif; font-size:72px; font-weight:600; line-height:1.1; letter-spacing:-1.6px">Two things changed</h2>
+  </div>
+  <div style="display:flex; gap:32px">
+    <div style="flex:1; background:#fffefb; border:1px solid #e4e0d6; border-radius:16px; padding:40px; display:flex; flex-direction:column; gap:16px">
+      <p style="font-size:24px; font-weight:600; letter-spacing:2px; color:#358730">THE MONEY</p>
+      <h3 style="font-family:'Inter', Arial, sans-serif; font-size:44px; font-weight:600; line-height:1.2">Payments as small as one sat</h3>
+      <p style="font-size:30px; line-height:1.4; color:#3a3a30">Lightning settles a fraction of a cent in seconds. The payment is final, and neither side needs an account.</p>
+    </div>
+    <div style="flex:1; background:#fffefb; border:1px solid #e4e0d6; border-radius:16px; padding:40px; display:flex; flex-direction:column; gap:16px">
+      <p style="font-size:24px; font-weight:600; letter-spacing:2px; color:#358730">THE CLIENT</p>
+      <h3 style="font-family:'Inter', Arial, sans-serif; font-size:44px; font-weight:600; line-height:1.2">Software that doesn't hesitate</h3>
+      <p style="font-size:30px; line-height:1.4; color:#3a3a30">An agent with a budget can make a thousand small payment decisions a day without tiring of it.</p>
+    </div>
+  </div>
+  <p style="font-family:'Inter', Arial, sans-serif; font-size:44px; font-weight:600; line-height:1.25; width:1500px">The mental cost Szabo described is a human one. Agents don't have it.</p>
+  <p style="position:absolute; left:128px; bottom:64px; width:1664px; text-align:right; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; color:#6b6b5c">ngx-l402.org</p>
+  </section>
+<section id="year" data-transition="fade" style="background:#fbfaf7; color:#16170f; font-family:'Inter', Arial, sans-serif; padding:128px 128px 160px; display:flex; flex-direction:column">
+  <div style="display:flex; flex-direction:column; gap:24px">
+    <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; font-weight:700; letter-spacing:2px; color:#358730">2023–2026</p>
+    <h2 style="font-family:'Inter', Arial, sans-serif; font-size:72px; font-weight:600; line-height:1.1; letter-spacing:-1.6px">402 is having its moment</h2>
+  </div>
+  <p style="position:absolute; right:128px; top:170px; width:640px; text-align:right; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; color:#6b6b5c"><span style="color:#358730">●</span> Lightning&#160;&#160;&#160;<span style="color:#9a9a8a">●</span> everyone else</p>
+  <div style="position:absolute; left:398px; top:330px; width:4px; height:444px; background:#d9d5c8"></div>
+  <p style="position:absolute; left:128px; top:316px; width:230px; text-align:right; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; font-weight:700; letter-spacing:2px; line-height:1.75; color:#358730">JUL 2023</p>
+  <div style="position:absolute; left:388px; top:325px; width:24px; height:24px; border-radius:50%; background:#358730; color:#fbfaf7"></div>
+  <p style="position:absolute; left:448px; top:316px; width:1344px; font-size:30px; line-height:1.4">Lightning Labs gives GPT agents a Lightning wallet, and they pay L402 APIs.</p>
+  <p style="position:absolute; left:128px; top:390px; width:230px; text-align:right; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; font-weight:700; letter-spacing:2px; line-height:1.75; color:#6b6b5c">APR–SEP 2025</p>
+  <div style="position:absolute; left:388px; top:399px; width:24px; height:24px; border-radius:50%; background:#9a9a8a"></div>
+  <p style="position:absolute; left:448px; top:390px; width:1344px; font-size:30px; line-height:1.4">Visa, Mastercard, Google, OpenAI and Stripe ship agent checkout, mostly on cards.</p>
+  <p style="position:absolute; left:128px; top:464px; width:230px; text-align:right; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; font-weight:700; letter-spacing:2px; line-height:1.75; color:#6b6b5c">JUL 2025</p>
+  <div style="position:absolute; left:388px; top:473px; width:24px; height:24px; border-radius:50%; background:#9a9a8a"></div>
+  <p style="position:absolute; left:448px; top:464px; width:1344px; font-size:30px; line-height:1.4">Cloudflare lets sites charge AI crawlers with 402: pay per crawl.</p>
+  <p style="position:absolute; left:128px; top:538px; width:230px; text-align:right; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; font-weight:700; letter-spacing:2px; line-height:1.75; color:#358730">FEB 2026</p>
+  <div style="position:absolute; left:388px; top:547px; width:24px; height:24px; border-radius:50%; background:#358730; color:#fbfaf7"></div>
+  <p style="position:absolute; left:448px; top:538px; width:1344px; font-size:30px; line-height:1.4">Lightning Labs open-sources lnget: curl that pays 402s, with a spending limit.</p>
+  <p style="position:absolute; left:128px; top:612px; width:230px; text-align:right; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; font-weight:700; letter-spacing:2px; line-height:1.75; color:#6b6b5c">MAR 2026</p>
+  <div style="position:absolute; left:388px; top:621px; width:24px; height:24px; border-radius:50%; background:#9a9a8a"></div>
+  <p style="position:absolute; left:448px; top:612px; width:1344px; font-size:30px; line-height:1.4">Stripe and Tempo take a 402-based "Payment" scheme to the IETF.</p>
+  <p style="position:absolute; left:128px; top:686px; width:230px; text-align:right; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; font-weight:700; letter-spacing:2px; line-height:1.75; color:#6b6b5c">JUN–JUL 2026</p>
+  <div style="position:absolute; left:388px; top:695px; width:24px; height:24px; border-radius:50%; background:#9a9a8a"></div>
+  <p style="position:absolute; left:448px; top:686px; width:1344px; font-size:30px; line-height:1.4">AWS CloudFront and Cloudflare let sites charge per request at the edge, with 402.</p>
+  <p style="position:absolute; left:128px; top:760px; width:230px; text-align:right; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; font-weight:700; letter-spacing:2px; line-height:1.75; color:#358730">JUL 2026</p>
+  <div style="position:absolute; left:388px; top:769px; width:24px; height:24px; border-radius:50%; background:#358730; color:#fbfaf7"></div>
+  <p style="position:absolute; left:448px; top:760px; width:1344px; font-size:30px; line-height:1.4">Lightning Labs launches Wavelength: self-custodial agent wallets over MCP.</p>
+  <p style="position:absolute; left:128px; top:850px; width:1664px; font-family:'Inter', Arial, sans-serif; font-size:44px; font-weight:600; line-height:1.25">Everyone agrees on 402. The question is the money behind it.</p>
+  <p style="position:absolute; left:128px; bottom:64px; width:1664px; text-align:right; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; color:#6b6b5c">ngx-l402.org</p>
+  </section>
+<section id="money" data-transition="fade" style="background:#f4f2ed; color:#16170f; font-family:'Inter', Arial, sans-serif; padding:128px 128px 160px; display:flex; flex-direction:column; gap:56px">
+  <div style="display:flex; flex-direction:column; gap:24px">
+    <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; font-weight:700; letter-spacing:2px; color:#358730">THE MONEY</p>
+    <h2 style="font-family:'Inter', Arial, sans-serif; font-size:72px; font-weight:600; line-height:1.1; letter-spacing:-1.6px">Which money is behind the 402?</h2>
+  </div>
+  <div style="display:flex; gap:32px">
+    <div style="flex:1; background:#fffefb; border:1px solid #e4e0d6; border-radius:16px; padding:40px; display:flex; flex-direction:column; gap:16px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:#6b6b5c; width:64px; height:64px"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      <h3 style="font-family:'Inter', Arial, sans-serif; font-size:44px; font-weight:600; line-height:1.2">Cards</h3>
+      <p style="font-size:30px; line-height:1.4; color:#3a3a30">An account, a card network's rules, and payments that can be reversed.</p>
+    </div>
+    <div style="flex:1; background:#fffefb; border:1px solid #e4e0d6; border-radius:16px; padding:40px; display:flex; flex-direction:column; gap:16px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:#6b6b5c; width:64px; height:64px"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+      <h3 style="font-family:'Inter', Arial, sans-serif; font-size:44px; font-weight:600; line-height:1.2">Stablecoins at the edge</h3>
+      <p style="font-size:30px; line-height:1.4; color:#3a3a30">At the edge, Coinbase's facilitator checks each payment and screens it against sanctions lists.</p>
+    </div>
+    <div style="flex:1; background:#11130b; border-radius:16px; padding:40px; display:flex; flex-direction:column; gap:16px; color:#e6e4d6">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:#feca0a; width:64px; height:64px"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      <h3 style="font-family:'Inter', Arial, sans-serif; font-size:44px; font-weight:600; line-height:1.2">Lightning</h3>
+      <p style="font-size:30px; line-height:1.4; color:#c8c5b6">The proof is a hash anyone can check. Nobody in the middle, and Cashu adds privacy.</p>
+    </div>
+  </div>
+  <p style="position:absolute; left:128px; top:820px; width:1664px; font-family:'Inter', Arial, sans-serif; font-size:44px; font-weight:600; line-height:1.25">Only one of these lets anyone accept a payment without asking permission.</p>
+  <p style="position:absolute; left:128px; bottom:64px; width:1664px; text-align:right; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; color:#6b6b5c">ngx-l402.org</p>
+  </section>
+<section id="today" data-transition="fade" style="background:#f4f2ed; color:#16170f; font-family:'Inter', Arial, sans-serif; padding:128px 128px 160px; display:flex; flex-direction:column">
+  <div style="display:flex; flex-direction:column; gap:24px">
+    <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; font-weight:700; letter-spacing:2px; color:#358730">AGENTS TODAY</p>
+    <h2 style="font-family:'Inter', Arial, sans-serif; font-size:72px; font-weight:600; line-height:1.1; letter-spacing:-1.6px">Agents have to pretend to be human</h2>
+  </div>
+  <div style="position:absolute; left:128px; top:310px; width:760px; background:#fffefb; border:1px solid #e4e0d6; border-radius:16px; box-shadow:0px 12px 40px rgba(20,20,10,0.10); padding:40px; display:flex; flex-direction:column; gap:20px">
+    <h3 style="font-family:'Inter', Arial, sans-serif; font-size:44px; font-weight:600; line-height:1.2">Create an account</h3>
+    <div style="display:flex; flex-direction:column; gap:8px">
+      <p style="font-size:24px; color:#6b6b5c">Email</p>
+      <div style="height:52px; border:2px solid #e4e0d6; border-radius:8px; background:#fffefb"></div>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:8px">
+      <p style="font-size:24px; color:#6b6b5c">Card number</p>
+      <div style="height:52px; border:2px solid #e4e0d6; border-radius:8px; background:#fffefb"></div>
+    </div>
+    <div style="display:flex; gap:20px; align-items:center; border:2px solid #e4e0d6; border-radius:8px; padding:20px 24px; background:#f4f2ed">
+      <div style="width:44px; height:44px; border:3px solid #9a9a8a; border-radius:6px; background:#fffefb"></div>
+      <p style="font-size:30px">I'm not a robot</p>
+    </div>
+  </div>
+  <p style="position:absolute; left:400px; top:668px; width:460px; transform:rotate(-8deg); border:4px solid #b3261e; border-radius:8px; background:#fffefb; padding:8px 12px; text-align:center; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:30px; font-weight:700; color:#b3261e">BUILT TO KEEP AGENTS OUT</p>
+  <div style="position:absolute; left:960px; top:320px; width:832px; display:flex; flex-direction:column; gap:8px">
+    <h3 style="font-family:'Inter', Arial, sans-serif; font-size:44px; font-weight:600; line-height:1.2">API keys</h3>
+    <p style="font-size:30px; line-height:1.4; color:#3a3a30">An account and a secret, for every API it calls once.</p>
+  </div>
+  <div style="position:absolute; left:960px; top:480px; width:832px; display:flex; flex-direction:column; gap:8px">
+    <h3 style="font-family:'Inter', Arial, sans-serif; font-size:44px; font-weight:600; line-height:1.2">Subscriptions</h3>
+    <p style="font-size:30px; line-height:1.4; color:#3a3a30">A monthly plan, to make one call.</p>
+  </div>
+  <div style="position:absolute; left:960px; top:640px; width:832px; display:flex; flex-direction:column; gap:8px">
+    <h3 style="font-family:'Inter', Arial, sans-serif; font-size:44px; font-weight:600; line-height:1.2">Your card</h3>
+    <p style="font-size:30px; line-height:1.4; color:#3a3a30">Your whole credit limit, with nothing in the protocol to stop it.</p>
+  </div>
+  <p style="position:absolute; left:128px; top:850px; width:1664px; font-family:'Inter', Arial, sans-serif; font-size:44px; font-weight:600; line-height:1.25">An agent needs a price, a wallet with a limit, and a receipt.</p>
+  <p style="position:absolute; left:128px; bottom:64px; width:1664px; text-align:right; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; color:#6b6b5c">ngx-l402.org</p>
+  </section>
+<section id="loop" data-transition="fade" style="background:#f4f2ed; color:#16170f; font-family:'Inter', Arial, sans-serif; padding:128px 128px 160px; display:flex; flex-direction:column; justify-content:space-between">
+  <div style="display:flex; flex-direction:column; gap:24px">
+    <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; font-weight:700; letter-spacing:2px; color:#358730">THE AGENT LOOP</p>
+    <h2 style="font-family:'Inter', Arial, sans-serif; font-size:72px; font-weight:600; line-height:1.1; letter-spacing:-1.6px">402 is one more branch in the loop</h2>
+  </div>
+  <div style="display:flex; gap:64px; align-items:center">
+    <div style="width:600px; display:flex; flex-direction:column; gap:40px">
+      <div style="display:flex; gap:32px; align-items:baseline">
+        <p style="width:140px; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:44px; font-weight:700; color:#6b6b5c">401</p>
+        <p style="flex:1; font-size:30px; color:#3a3a30">Log in, then retry</p>
+      </div>
+      <div style="display:flex; gap:32px; align-items:baseline">
+        <p style="width:140px; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:44px; font-weight:700; color:#6b6b5c">429</p>
+        <p style="flex:1; font-size:30px; color:#3a3a30">Slow down, then retry</p>
+      </div>
+      <div style="display:flex; gap:32px; align-items:baseline">
+        <p style="width:140px; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:44px; font-weight:700; color:#358730">402</p>
+        <p style="flex:1; font-size:30px; font-weight:600">Pay, then retry</p>
+      </div>
+    </div>
+    <div style="flex:1; background:#11130b; border-radius:16px; padding:48px; color:#e6e4d6">
+      <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:30px; line-height:1.5; color:#e6e4d6">r = get(url)<br>if r.status == <span style="color:#feca0a">402</span>:<br>&#160;&#160;offer = parse(r.headers["WWW-Authenticate"])<br>&#160;&#160;if offer.amount &lt;= budget:<br>&#160;&#160;&#160;&#160;preimage = wallet.pay(offer.invoice)<br>&#160;&#160;&#160;&#160;r = get(url, l402=(offer.token, preimage))</p>
+    </div>
+  </div>
+  <p style="position:absolute; left:128px; bottom:64px; width:1664px; text-align:right; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; color:#6b6b5c">ngx-l402.org</p>
+  </section>
+<section id="how" data-transition="fade" style="background:#f4f2ed; color:#16170f; font-family:'Inter', Arial, sans-serif; padding:128px 128px 160px; display:flex; flex-direction:column">
+  <div style="display:flex; flex-direction:column; gap:24px">
+    <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; font-weight:700; letter-spacing:2px; color:#358730">HOW L402 WORKS</p>
+    <h2 style="font-family:'Inter', Arial, sans-serif; font-size:72px; font-weight:600; line-height:1.1; letter-spacing:-1.6px">L402: pay, then prove you paid</h2>
+  </div>
+  <div style="position:absolute; left:329px; top:346px; width:0px; height:554px; border-left:3px dashed #d9d5c8"></div>
+  <div style="position:absolute; left:959px; top:346px; width:0px; height:554px; border-left:3px dashed #d9d5c8"></div>
+  <div style="position:absolute; left:1589px; top:346px; width:0px; height:554px; border-left:3px dashed #d9d5c8"></div>
+  <p style="position:absolute; left:180px; top:290px; width:300px; text-align:center; font-family:'Inter', Arial, sans-serif; font-size:30px; font-weight:600; background:#11130b; color:#e6e4d6; padding:8px 16px; border-radius:30px">Agent</p>
+  <p style="position:absolute; left:810px; top:290px; width:300px; text-align:center; font-family:'Inter', Arial, sans-serif; font-size:30px; font-weight:600; background:#11130b; color:#e6e4d6; padding:8px 16px; border-radius:30px">Server</p>
+  <p style="position:absolute; left:1440px; top:290px; width:300px; text-align:center; font-family:'Inter', Arial, sans-serif; font-size:30px; font-weight:600; background:#feca0a; color:#16170f; padding:8px 16px; border-radius:30px">Lightning</p>
+  <p style="position:absolute; left:354px; top:374px; width:582px; text-align:center; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; font-weight:700">GET /api</p>
+  <div style="position:absolute; left:330px; top:418px; width:602px; height:4px; background:#11130b; color:#e6e4d6"></div>
+  <x-shape kind="arrow-right" style="position:absolute; left:932px; top:408px; width:28px; height:24px; background:#11130b"></x-shape>
+  <p style="position:absolute; left:354px; top:464px; width:582px; text-align:center; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; font-weight:700; color:#16170f">402 · token + invoice</p>
+  <x-shape kind="arrow-left" style="position:absolute; left:330px; top:498px; width:28px; height:24px; background:#358730"></x-shape>
+  <div style="position:absolute; left:358px; top:508px; width:602px; height:4px; background:#358730"></div>
+  <p style="position:absolute; left:990px; top:488px; width:560px; font-size:24px; color:#6b6b5c">token and invoice share one payment hash</p>
+  <p style="position:absolute; left:990px; top:554px; width:560px; text-align:center; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; font-weight:700; color:#16170f">pay the invoice</p>
+  <div style="position:absolute; left:330px; top:598px; width:1232px; height:4px; background:#358730"></div>
+  <x-shape kind="arrow-right" style="position:absolute; left:1562px; top:588px; width:28px; height:24px; background:#358730"></x-shape>
+  <p style="position:absolute; left:990px; top:644px; width:560px; text-align:center; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; font-weight:700; color:#16170f">preimage: the receipt</p>
+  <x-shape kind="arrow-left" style="position:absolute; left:330px; top:678px; width:28px; height:24px; background:#358730"></x-shape>
+  <div style="position:absolute; left:358px; top:688px; width:1232px; height:4px; background:#358730"></div>
+  <p style="position:absolute; left:354px; top:734px; width:582px; text-align:center; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; font-weight:700">GET /api · token:preimage</p>
+  <div style="position:absolute; left:330px; top:778px; width:602px; height:4px; background:#11130b; color:#e6e4d6"></div>
+  <x-shape kind="arrow-right" style="position:absolute; left:932px; top:768px; width:28px; height:24px; background:#11130b"></x-shape>
+  <p style="position:absolute; left:354px; top:824px; width:582px; text-align:center; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; font-weight:700; color:#2e7d32">200 OK</p>
+  <x-shape kind="arrow-left" style="position:absolute; left:330px; top:858px; width:28px; height:24px; background:#2e7d32"></x-shape>
+  <div style="position:absolute; left:358px; top:868px; width:602px; height:4px; background:#2e7d32"></div>
+  <p style="position:absolute; left:990px; top:848px; width:600px; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; color:#2e7d32">checked: sha256(preimage) = payment hash</p>
+  <p style="position:absolute; left:128px; bottom:64px; width:1664px; text-align:right; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; color:#6b6b5c">ngx-l402.org</p>
+  </section>
+<section id="receipt" data-transition="fade" style="background:#11130b; color:#e6e4d6; font-family:'Inter', Arial, sans-serif; padding:128px; display:flex; flex-direction:column; justify-content:center; gap:48px">
+  <h2 style="font-family:'Inter', Arial, sans-serif; font-size:120px; font-weight:600; line-height:1.05; letter-spacing:-3px">The preimage<br>is the receipt.</h2>
+  <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:44px; color:#feca0a">sha256(preimage) == payment_hash</p>
+  <p style="font-size:30px; line-height:1.4; color:#c8c5b6; width:1100px">The server checks it locally, with its own key and one hash. No call to the Lightning node, and no customer database.</p>
+  </section>
+<section id="cashu" data-transition="fade" style="background:#f4f2ed; color:#16170f; font-family:'Inter', Arial, sans-serif; padding:128px 128px 160px; display:flex; flex-direction:column">
+  <div style="display:flex; flex-direction:column; gap:24px">
+    <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; font-weight:700; letter-spacing:2px; color:#358730">OR PAY WITH ECASH</p>
+    <h2 style="font-family:'Inter', Arial, sans-serif; font-size:72px; font-weight:600; line-height:1.1; letter-spacing:-1.6px">Cashu: the token is the payment</h2>
+  </div>
+  <div style="position:absolute; left:329px; top:346px; width:0px; height:554px; border-left:3px dashed #d9d5c8"></div>
+  <div style="position:absolute; left:959px; top:346px; width:0px; height:554px; border-left:3px dashed #d9d5c8"></div>
+  <div style="position:absolute; left:1589px; top:346px; width:0px; height:554px; border-left:3px dashed #d9d5c8"></div>
+  <p style="position:absolute; left:180px; top:290px; width:300px; text-align:center; font-family:'Inter', Arial, sans-serif; font-size:30px; font-weight:600; background:#11130b; color:#e6e4d6; padding:8px 16px; border-radius:30px">Agent</p>
+  <p style="position:absolute; left:810px; top:290px; width:300px; text-align:center; font-family:'Inter', Arial, sans-serif; font-size:30px; font-weight:600; background:#11130b; color:#e6e4d6; padding:8px 16px; border-radius:30px">Server</p>
+  <p style="position:absolute; left:1440px; top:290px; width:300px; text-align:center; font-family:'Inter', Arial, sans-serif; font-size:30px; font-weight:600; background:#feca0a; color:#16170f; padding:8px 16px; border-radius:30px">Mint</p>
+  <p style="position:absolute; left:354px; top:374px; width:582px; text-align:center; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; font-weight:700">GET /api</p>
+  <div style="position:absolute; left:330px; top:418px; width:602px; height:4px; background:#11130b; color:#e6e4d6"></div>
+  <x-shape kind="arrow-right" style="position:absolute; left:932px; top:408px; width:28px; height:24px; background:#11130b"></x-shape>
+  <p style="position:absolute; left:354px; top:464px; width:582px; text-align:center; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; font-weight:700; color:#16170f">402 · X-Cashu: payment request</p>
+  <x-shape kind="arrow-left" style="position:absolute; left:330px; top:498px; width:28px; height:24px; background:#358730"></x-shape>
+  <div style="position:absolute; left:358px; top:508px; width:602px; height:4px; background:#358730"></div>
+  <p style="position:absolute; left:990px; top:488px; width:560px; font-size:24px; color:#6b6b5c">amount, unit and accepted mints</p>
+  <p style="position:absolute; left:354px; top:554px; width:582px; text-align:center; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; font-weight:700; color:#16170f">GET /api · X-Cashu: cashuB…</p>
+  <div style="position:absolute; left:330px; top:598px; width:602px; height:4px; background:#358730"></div>
+  <x-shape kind="arrow-right" style="position:absolute; left:932px; top:588px; width:28px; height:24px; background:#358730"></x-shape>
+  <p style="position:absolute; left:990px; top:578px; width:560px; font-size:24px; color:#6b6b5c">no invoice: the agent already holds ecash</p>
+  <p style="position:absolute; left:990px; top:644px; width:560px; text-align:center; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; font-weight:700; color:#16170f">swap the token</p>
+  <div style="position:absolute; left:960px; top:688px; width:602px; height:4px; background:#358730"></div>
+  <x-shape kind="arrow-right" style="position:absolute; left:1562px; top:678px; width:28px; height:24px; background:#358730"></x-shape>
+  <p style="position:absolute; left:990px; top:734px; width:560px; text-align:center; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; font-weight:700; color:#16170f">fresh ecash for the server</p>
+  <x-shape kind="arrow-left" style="position:absolute; left:960px; top:768px; width:28px; height:24px; background:#358730"></x-shape>
+  <div style="position:absolute; left:988px; top:778px; width:602px; height:4px; background:#358730"></div>
+  <p style="position:absolute; left:354px; top:824px; width:582px; text-align:center; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; font-weight:700; color:#2e7d32">200 OK</p>
+  <x-shape kind="arrow-left" style="position:absolute; left:330px; top:858px; width:28px; height:24px; background:#2e7d32"></x-shape>
+  <div style="position:absolute; left:358px; top:868px; width:602px; height:4px; background:#2e7d32"></div>
+  <p style="position:absolute; left:990px; top:848px; width:600px; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; color:#2e7d32">swapped: it can't be spent twice</p>
+  <p style="position:absolute; left:128px; top:930px; width:1300px; font-size:24px; color:#6b6b5c">P2PK mode: tokens locked to the server's key are checked locally, with no call to the mint.</p>
+  <p style="position:absolute; left:128px; bottom:64px; width:1664px; text-align:right; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; color:#6b6b5c">ngx-l402.org</p>
+  </section>
+<section id="needs" data-transition="fade" style="background:#fbfaf7; color:#16170f; font-family:'Inter', Arial, sans-serif; padding:128px 128px 160px; display:flex; flex-direction:column">
+  <div style="display:flex; flex-direction:column; gap:24px">
+    <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; font-weight:700; letter-spacing:2px; color:#358730">PAYING SAFELY</p>
+    <h2 style="font-family:'Inter', Arial, sans-serif; font-size:72px; font-weight:600; line-height:1.1; letter-spacing:-1.6px">What an agent needs to pay safely</h2>
+  </div>
+  <div style="position:absolute; left:128px; top:316px; width:1664px; display:flex; flex-direction:row; gap:32px; align-items:flex-start; padding-top:18px; border-top:1px solid #e4e0d6">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:#358730; width:48px; height:48px"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+    <h3 style="width:260px; font-family:'Inter', Arial, sans-serif; font-size:44px; font-weight:600; line-height:1.2; color:#16170f">Discover</h3>
+    <p style="flex:1; font-size:30px; line-height:1.4; color:#3a3a30">A price list it can read before calling: a /.well-known file, a directory, a Nostr announcement.</p>
+  </div>
+  <div style="position:absolute; left:128px; top:428px; width:1664px; display:flex; flex-direction:row; gap:32px; align-items:flex-start; padding-top:18px; border-top:1px solid #e4e0d6">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:#358730; width:48px; height:48px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+    <h3 style="width:260px; font-family:'Inter', Arial, sans-serif; font-size:44px; font-weight:600; line-height:1.2; color:#16170f">Decide</h3>
+    <p style="flex:1; font-size:30px; line-height:1.4; color:#3a3a30">A budget, and a check of the invoice before it pays.</p>
+  </div>
+  <div style="position:absolute; left:128px; top:540px; width:1664px; display:flex; flex-direction:row; gap:32px; align-items:flex-start; padding-top:18px; border-top:1px solid #e4e0d6">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:#358730; width:48px; height:48px"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+    <h3 style="width:260px; font-family:'Inter', Arial, sans-serif; font-size:44px; font-weight:600; line-height:1.2; color:#16170f">Pay</h3>
+    <p style="flex:1; font-size:30px; line-height:1.4; color:#3a3a30">A wallet with a cap it can't raise: an NWC connection with its own budget you can revoke, or a small self-custodial wallet like Wavelength.</p>
+  </div>
+  <div style="position:absolute; left:128px; top:652px; width:1664px; display:flex; flex-direction:row; gap:32px; align-items:flex-start; padding-top:18px; border-top:1px solid #e4e0d6">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:#358730; width:48px; height:48px"><path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"/><path d="m9 12 2 2 4-4"/></svg>
+    <h3 style="width:260px; font-family:'Inter', Arial, sans-serif; font-size:44px; font-weight:600; line-height:1.2; color:#16170f">Prove</h3>
+    <p style="flex:1; font-size:30px; line-height:1.4; color:#3a3a30">A bearer receipt for the payment, and a separate signature when a service needs to know who is asking.</p>
+  </div>
+  <div style="position:absolute; left:128px; top:764px; width:1664px; display:flex; flex-direction:row; gap:32px; align-items:flex-start; padding-top:18px; border-top:1px solid #e4e0d6">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:#358730; width:48px; height:48px"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg>
+    <h3 style="width:260px; font-family:'Inter', Arial, sans-serif; font-size:44px; font-weight:600; line-height:1.2; color:#16170f">Delegate</h3>
+    <p style="flex:1; font-size:30px; line-height:1.4; color:#3a3a30">A token it can narrow itself and hand to a sub-agent. Macaroons are built for that.</p>
+  </div>
+  <p style="position:absolute; left:128px; bottom:64px; width:1664px; text-align:right; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; color:#6b6b5c">ngx-l402.org</p>
+  </section>
+<section id="unsolved" data-transition="fade" style="background:#f4f2ed; color:#16170f; font-family:'Inter', Arial, sans-serif; padding:128px 128px 160px; display:flex; flex-direction:column">
+  <div style="display:flex; flex-direction:column; gap:24px">
+    <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; font-weight:700; letter-spacing:2px; color:#358730">HACKATHON IDEAS</p>
+    <h2 style="font-family:'Inter', Arial, sans-serif; font-size:72px; font-weight:600; line-height:1.1; letter-spacing:-1.6px">Open problems to hack on</h2>
+  </div>
+  <div style="position:absolute; left:128px; top:316px; width:800px; background:#fffefb; border:1px solid #e4e0d6; border-radius:16px; padding:36px; display:flex; flex-direction:column; gap:12px">
+    <div style="display:flex; gap:16px; align-items:center">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:#358730; width:44px; height:44px"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+      <h3 style="flex:1; font-family:'Inter', Arial, sans-serif; font-size:44px; font-weight:600; line-height:1.2">Paid, but the call failed</h3>
+    </div>
+    <p style="font-size:30px; line-height:1.4; color:#3a3a30">Lightning is final. If the server returns a 500, who refunds?</p>
+  </div>
+  <div style="position:absolute; left:992px; top:316px; width:800px; background:#fffefb; border:1px solid #e4e0d6; border-radius:16px; padding:36px; display:flex; flex-direction:column; gap:12px">
+    <div style="display:flex; gap:16px; align-items:center">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:#358730; width:44px; height:44px"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+      <h3 style="flex:1; font-family:'Inter', Arial, sans-serif; font-size:44px; font-weight:600; line-height:1.2">Prices not known up front</h3>
+    </div>
+    <p style="font-size:30px; line-height:1.4; color:#3a3a30">An LLM call costs whatever tokens it generates.</p>
+  </div>
+  <div style="position:absolute; left:128px; top:650px; width:800px; background:#fffefb; border:1px solid #e4e0d6; border-radius:16px; padding:36px; display:flex; flex-direction:column; gap:12px">
+    <div style="display:flex; gap:16px; align-items:center">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:#358730; width:44px; height:44px"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>
+      <h3 style="flex:1; font-family:'Inter', Arial, sans-serif; font-size:44px; font-weight:600; line-height:1.2">Which sellers to trust</h3>
+    </div>
+    <p style="font-size:30px; line-height:1.4; color:#3a3a30">An agent can check the price, not whether the answer is good.</p>
+  </div>
+  <div style="position:absolute; left:992px; top:650px; width:800px; background:#fffefb; border:1px solid #e4e0d6; border-radius:16px; padding:36px; display:flex; flex-direction:column; gap:12px">
+    <div style="display:flex; gap:16px; align-items:center">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:#358730; width:44px; height:44px"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      <h3 style="flex:1; font-family:'Inter', Arial, sans-serif; font-size:44px; font-weight:600; line-height:1.2">What the wallet sees</h3>
+    </div>
+    <p style="font-size:30px; line-height:1.4; color:#3a3a30">A custodial wallet sees everything its agent buys.</p>
+  </div>
+  <p style="position:absolute; left:128px; bottom:64px; width:1664px; text-align:right; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; color:#6b6b5c">ngx-l402.org</p>
+  </section>
+<section id="nginx" data-transition="fade" style="background:#f4f2ed; color:#16170f; font-family:'Inter', Arial, sans-serif; padding:128px 128px 160px; display:flex; flex-direction:column; justify-content:space-between">
+  <div style="display:flex; flex-direction:column; gap:24px">
+    <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; font-weight:700; letter-spacing:2px; color:#358730">NGX-L402</p>
+    <h2 style="font-family:'Inter', Arial, sans-serif; font-size:72px; font-weight:600; line-height:1.1; letter-spacing:-1.6px">Our piece: 402 inside nginx</h2>
+  </div>
+  <div style="display:flex; gap:64px; align-items:center">
+    <div style="width:980px; background:#11130b; border-radius:16px; padding:48px; color:#e6e4d6">
+      <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:30px; line-height:1.5; color:#e6e4d6"><span style="color:#feca0a">load_module</span> modules/libngx_l402_lib.so;<br><br>location /v1/ {<br>&#160;&#160;&#160;&#160;<span style="color:#feca0a">l402</span> on;<br>&#160;&#160;&#160;&#160;<span style="color:#feca0a">l402_amount_msat_default</span> 10000;&#160;&#160;<span style="color:#7e7e6a"># 10 sats</span><br>&#160;&#160;&#160;&#160;proxy_pass http://my_api;<br>}</p>
+    </div>
+    <div style="flex:1; display:flex; flex-direction:column; gap:40px">
+      <div style="display:flex; flex-direction:column; gap:12px">
+        <h3 style="font-family:'Inter', Arial, sans-serif; font-size:44px; font-weight:600; line-height:1.2">Any upstream</h3>
+        <p style="font-size:30px; line-height:1.4; color:#3a3a30">Your API code doesn't change, whatever language it's in.</p>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:12px">
+        <h3 style="font-family:'Inter', Arial, sans-serif; font-size:44px; font-weight:600; line-height:1.2">No node needed</h3>
+        <p style="font-size:30px; line-height:1.4; color:#3a3a30">Receive at a Lightning address or into your wallet over NWC. Or bring LND, CLN or Eclair.</p>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:12px">
+        <h3 style="font-family:'Inter', Arial, sans-serif; font-size:44px; font-weight:600; line-height:1.2">Ready for agents</h3>
+        <p style="font-size:30px; line-height:1.4; color:#3a3a30">Cashu ecash, and a price list at /.well-known/l402-services.</p>
+      </div>
+    </div>
+  </div>
+  <p style="position:absolute; left:128px; bottom:64px; width:1664px; text-align:right; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; color:#6b6b5c">ngx-l402.org</p>
+  </section>
+<section id="lesson1" data-transition="fade" style="background:#f4f2ed; color:#16170f; font-family:'Inter', Arial, sans-serif; padding:128px 128px 160px; display:flex; flex-direction:column; justify-content:space-between">
+  <p style="position:absolute; left:1392px; top:64px; width:400px; text-align:right; font-family:'Inter', Arial, sans-serif; font-size:320px; font-weight:600; line-height:1; color:transparent; -webkit-text-stroke:3px #e4e0d6">1</p>
+  <div style="display:flex; flex-direction:column; gap:24px">
+    <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; font-weight:700; letter-spacing:2px; color:#358730">LESSON 1 OF 4</p>
+    <h2 style="font-family:'Inter', Arial, sans-serif; font-size:72px; font-weight:600; line-height:1.1; letter-spacing:-1.6px">Share payment state, and fail closed</h2>
+  </div>
+  <div style="display:flex; gap:32px">
+    <div style="flex:3; background:#fffefb; border:1px solid #e4e0d6; border-radius:16px; padding:48px; display:flex; flex-direction:column; gap:16px">
+      <p style="font-size:24px; font-weight:600; letter-spacing:2px; color:#6b6b5c">WHAT HAPPENED</p>
+      <p style="font-size:30px; line-height:1.5">nginx runs several worker processes, each with its own memory. A receipt used on one worker still looked unused on the next. Spent receipts now go to Redis, shared by every worker, and when Redis is unreachable the gateway refuses the payment.</p>
+    </div>
+    <div style="flex:2; background:#11130b; color:#e6e4d6; border-radius:16px; padding:48px; display:flex; flex-direction:column; gap:16px">
+      <p style="font-size:24px; font-weight:600; letter-spacing:2px; color:#feca0a">TAKEAWAY</p>
+      <p style="font-family:'Inter', Arial, sans-serif; font-size:44px; font-weight:600; line-height:1.2">If you can't record a payment, don't accept it.</p>
+    </div>
+  </div>
+  <p style="position:absolute; left:128px; bottom:64px; width:1664px; text-align:right; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; color:#6b6b5c">ngx-l402.org</p>
+  </section>
+<section id="lesson2" data-transition="fade" style="background:#f4f2ed; color:#16170f; font-family:'Inter', Arial, sans-serif; padding:128px 128px 160px; display:flex; flex-direction:column; justify-content:space-between">
+  <p style="position:absolute; left:1392px; top:64px; width:400px; text-align:right; font-family:'Inter', Arial, sans-serif; font-size:320px; font-weight:600; line-height:1; color:transparent; -webkit-text-stroke:3px #e4e0d6">2</p>
+  <div style="display:flex; flex-direction:column; gap:24px">
+    <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; font-weight:700; letter-spacing:2px; color:#358730">LESSON 2 OF 4</p>
+    <h2 style="font-family:'Inter', Arial, sans-serif; font-size:72px; font-weight:600; line-height:1.1; letter-spacing:-1.6px">Real clients bend the spec</h2>
+  </div>
+  <div style="display:flex; gap:32px">
+    <div style="flex:3; background:#fffefb; border:1px solid #e4e0d6; border-radius:16px; padding:48px; display:flex; flex-direction:column; gap:16px">
+      <p style="font-size:24px; font-weight:600; letter-spacing:2px; color:#6b6b5c">WHAT HAPPENED</p>
+      <p style="font-size:30px; line-height:1.5">The proof of payment is a 32-byte preimage. Some custodial wallets never show it: a payment settled inside their own database leaves no preimage to hand back, so a user who paid stays locked out. Auto-detect fixed it: the gateway asks its own node whether the invoice was paid.</p>
+    </div>
+    <div style="flex:2; background:#11130b; color:#e6e4d6; border-radius:16px; padding:48px; display:flex; flex-direction:column; gap:16px">
+      <p style="font-size:24px; font-weight:600; letter-spacing:2px; color:#feca0a">TAKEAWAY</p>
+      <p style="font-family:'Inter', Arial, sans-serif; font-size:44px; font-weight:600; line-height:1.2">Keep a way to confirm payment that doesn't rely on the client getting it right.</p>
+    </div>
+  </div>
+  <p style="position:absolute; left:128px; bottom:64px; width:1664px; text-align:right; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; color:#6b6b5c">ngx-l402.org</p>
+  </section>
+<section id="lesson3" data-transition="fade" style="background:#f4f2ed; color:#16170f; font-family:'Inter', Arial, sans-serif; padding:128px 128px 160px; display:flex; flex-direction:column; justify-content:space-between">
+  <p style="position:absolute; left:1392px; top:64px; width:400px; text-align:right; font-family:'Inter', Arial, sans-serif; font-size:320px; font-weight:600; line-height:1; color:transparent; -webkit-text-stroke:3px #e4e0d6">3</p>
+  <div style="display:flex; flex-direction:column; gap:24px">
+    <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; font-weight:700; letter-spacing:2px; color:#358730">LESSON 3 OF 4</p>
+    <h2 style="font-family:'Inter', Arial, sans-serif; font-size:72px; font-weight:600; line-height:1.1; letter-spacing:-1.6px">Least access, and follow the money</h2>
+  </div>
+  <div style="display:flex; gap:32px">
+    <div style="flex:3; background:#fffefb; border:1px solid #e4e0d6; border-radius:16px; padding:48px; display:flex; flex-direction:column; gap:16px">
+      <p style="font-size:24px; font-weight:600; letter-spacing:2px; color:#6b6b5c">WHAT HAPPENED</p>
+      <p style="font-size:30px; line-height:1.5">One gateway serves several tenants. A redemption bug paid one tenant's ecash to the default address instead of theirs. On the Lightning side, the gateway only gets a receive-only NWC connection, so a bug there can't spend anything.</p>
+    </div>
+    <div style="flex:2; background:#11130b; color:#e6e4d6; border-radius:16px; padding:48px; display:flex; flex-direction:column; gap:16px">
+      <p style="font-size:24px; font-weight:600; letter-spacing:2px; color:#feca0a">TAKEAWAY</p>
+      <p style="font-family:'Inter', Arial, sans-serif; font-size:44px; font-weight:600; line-height:1.2">Give code that touches funds only the access it needs. Then test where the money actually lands.</p>
+    </div>
+  </div>
+  <p style="position:absolute; left:128px; bottom:64px; width:1664px; text-align:right; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; color:#6b6b5c">ngx-l402.org</p>
+  </section>
+<section id="lesson4" data-transition="fade" style="background:#f4f2ed; color:#16170f; font-family:'Inter', Arial, sans-serif; padding:128px 128px 160px; display:flex; flex-direction:column; justify-content:space-between">
+  <p style="position:absolute; left:1392px; top:64px; width:400px; text-align:right; font-family:'Inter', Arial, sans-serif; font-size:320px; font-weight:600; line-height:1; color:transparent; -webkit-text-stroke:3px #e4e0d6">4</p>
+  <div style="display:flex; flex-direction:column; gap:24px">
+    <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; font-weight:700; letter-spacing:2px; color:#358730">LESSON 4 OF 4</p>
+    <h2 style="font-family:'Inter', Arial, sans-serif; font-size:72px; font-weight:600; line-height:1.1; letter-spacing:-1.6px">Host the code where it can't be switched off</h2>
+  </div>
+  <div style="display:flex; gap:32px">
+    <div style="flex:3; background:#fffefb; border:1px solid #e4e0d6; border-radius:16px; padding:48px; display:flex; flex-direction:column; gap:16px">
+      <p style="font-size:24px; font-weight:600; letter-spacing:2px; color:#6b6b5c">WHAT HAPPENED</p>
+      <p style="font-size:30px; line-height:1.5">GitHub twice made the repository publicly inaccessible: once for a week, once for a little less. The project now lives on Nostr, pushed with ngit, and GitHub keeps a copy.</p>
+    </div>
+    <div style="flex:2; background:#11130b; color:#e6e4d6; border-radius:16px; padding:48px; display:flex; flex-direction:column; gap:16px">
+      <p style="font-size:24px; font-weight:600; letter-spacing:2px; color:#feca0a">TAKEAWAY</p>
+      <p style="font-family:'Inter', Arial, sans-serif; font-size:44px; font-weight:600; line-height:1.2">Open payment infrastructure needs a home no single company can take down.</p>
+    </div>
+  </div>
+  <p style="position:absolute; left:128px; bottom:64px; width:1664px; text-align:right; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; color:#6b6b5c">ngx-l402.org</p>
+  </section>
+<section id="close" data-transition="fade" style="background:#fbfaf7; color:#16170f; font-family:'Inter', Arial, sans-serif">
+  <p style="position:absolute; top:128px; left:128px; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:30px; color:#2e7d32">HTTP/1.1 200 OK</p>
+  <h1 style="position:absolute; top:196px; left:128px; width:1200px; font-family:'Inter', Arial, sans-serif; font-size:120px; font-weight:600; line-height:1.05; letter-spacing:-3px">Thank you</h1>
+  <p style="position:absolute; top:338px; left:128px; font-size:44px; color:#358730">Questions?</p>
+  <p style="position:absolute; top:410px; left:128px; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; font-weight:700; letter-spacing:2px; color:#358730">TRY IT AT THE HACKATHON</p>
+  <div style="position:absolute; top:452px; left:128px; width:1080px; background:#11130b; border:1px solid #2b2d20; border-radius:16px; padding:28px 40px; color:#e6e4d6">
+    <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; line-height:1.5">docker run -d -p 8000:8000 \<br>&#160;&#160;-e LN_CLIENT_TYPE=LNURL \<br>&#160;&#160;-e LNURL_ADDRESS=<span style="color:#feca0a">you@your-wallet.com</span> \<br>&#160;&#160;-e ROOT_KEY=$(openssl rand -hex 32) \<br>&#160;&#160;ghcr.io/ngx-l402/ngx-l402:latest<br><br>curl -i localhost:8000/protected&#160;&#160;<span style="color:#7e7e6a"># 402</span></p>
+  </div>
+  <p style="position:absolute; top:776px; left:128px; width:1080px; font-size:26px; color:#3a3a30">Sats land at the Lightning address you set. No node, no sign-up.</p>
+  <p style="position:absolute; top:830px; left:128px; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; font-weight:700; letter-spacing:2px; color:#358730">IF GITHUB GOES AWAY, PULL IT OVER NOSTR</p>
+  <p style="position:absolute; top:870px; left:128px; width:1664px; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; line-height:1.4">nectr pull npub1l8gxrg5nc8g9qsy5ywschmwseqp0g24u96a4vzmvumupq8x0nm3s40l6km/ngx-l402:latest \<br>&#160;&#160;-s https://blossom.ngx-l402.org&#160;&#160;<span style="color:#6b6b5c"># pays in sats</span></p>
+  <div style="position:absolute; top:128px; right:128px; display:flex; flex-direction:column; gap:16px; align-items:center">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 33 33" shape-rendering="crispEdges" style="width:380px; height:380px; border-radius:16px"><rect width="33" height="33" fill="#ffffff"/><path d="M4 4h1v1h-1zM5 4h1v1h-1zM6 4h1v1h-1zM7 4h1v1h-1zM8 4h1v1h-1zM9 4h1v1h-1zM10 4h1v1h-1zM12 4h1v1h-1zM13 4h1v1h-1zM14 4h1v1h-1zM17 4h1v1h-1zM18 4h1v1h-1zM22 4h1v1h-1zM23 4h1v1h-1zM24 4h1v1h-1zM25 4h1v1h-1zM26 4h1v1h-1zM27 4h1v1h-1zM28 4h1v1h-1zM4 5h1v1h-1zM10 5h1v1h-1zM12 5h1v1h-1zM14 5h1v1h-1zM16 5h1v1h-1zM18 5h1v1h-1zM20 5h1v1h-1zM22 5h1v1h-1zM28 5h1v1h-1zM4 6h1v1h-1zM6 6h1v1h-1zM7 6h1v1h-1zM8 6h1v1h-1zM10 6h1v1h-1zM12 6h1v1h-1zM13 6h1v1h-1zM14 6h1v1h-1zM16 6h1v1h-1zM17 6h1v1h-1zM22 6h1v1h-1zM24 6h1v1h-1zM25 6h1v1h-1zM26 6h1v1h-1zM28 6h1v1h-1zM4 7h1v1h-1zM6 7h1v1h-1zM7 7h1v1h-1zM8 7h1v1h-1zM10 7h1v1h-1zM14 7h1v1h-1zM17 7h1v1h-1zM19 7h1v1h-1zM20 7h1v1h-1zM22 7h1v1h-1zM24 7h1v1h-1zM25 7h1v1h-1zM26 7h1v1h-1zM28 7h1v1h-1zM4 8h1v1h-1zM6 8h1v1h-1zM7 8h1v1h-1zM8 8h1v1h-1zM10 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM15 8h1v1h-1zM22 8h1v1h-1zM24 8h1v1h-1zM25 8h1v1h-1zM26 8h1v1h-1zM28 8h1v1h-1zM4 9h1v1h-1zM10 9h1v1h-1zM18 9h1v1h-1zM20 9h1v1h-1zM22 9h1v1h-1zM28 9h1v1h-1zM4 10h1v1h-1zM5 10h1v1h-1zM6 10h1v1h-1zM7 10h1v1h-1zM8 10h1v1h-1zM9 10h1v1h-1zM10 10h1v1h-1zM12 10h1v1h-1zM14 10h1v1h-1zM16 10h1v1h-1zM18 10h1v1h-1zM20 10h1v1h-1zM22 10h1v1h-1zM23 10h1v1h-1zM24 10h1v1h-1zM25 10h1v1h-1zM26 10h1v1h-1zM27 10h1v1h-1zM28 10h1v1h-1zM13 11h1v1h-1zM14 11h1v1h-1zM15 11h1v1h-1zM16 11h1v1h-1zM17 11h1v1h-1zM18 11h1v1h-1zM19 11h1v1h-1zM20 11h1v1h-1zM4 12h1v1h-1zM7 12h1v1h-1zM8 12h1v1h-1zM9 12h1v1h-1zM10 12h1v1h-1zM11 12h1v1h-1zM12 12h1v1h-1zM13 12h1v1h-1zM18 12h1v1h-1zM20 12h1v1h-1zM21 12h1v1h-1zM24 12h1v1h-1zM26 12h1v1h-1zM27 12h1v1h-1zM28 12h1v1h-1zM4 13h1v1h-1zM6 13h1v1h-1zM7 13h1v1h-1zM9 13h1v1h-1zM12 13h1v1h-1zM13 13h1v1h-1zM14 13h1v1h-1zM16 13h1v1h-1zM18 13h1v1h-1zM19 13h1v1h-1zM21 13h1v1h-1zM23 13h1v1h-1zM24 13h1v1h-1zM25 13h1v1h-1zM26 13h1v1h-1zM27 13h1v1h-1zM5 14h1v1h-1zM6 14h1v1h-1zM7 14h1v1h-1zM8 14h1v1h-1zM9 14h1v1h-1zM10 14h1v1h-1zM11 14h1v1h-1zM13 14h1v1h-1zM15 14h1v1h-1zM17 14h1v1h-1zM18 14h1v1h-1zM19 14h1v1h-1zM20 14h1v1h-1zM21 14h1v1h-1zM22 14h1v1h-1zM23 14h1v1h-1zM25 14h1v1h-1zM28 14h1v1h-1zM5 15h1v1h-1zM6 15h1v1h-1zM11 15h1v1h-1zM14 15h1v1h-1zM18 15h1v1h-1zM20 15h1v1h-1zM22 15h1v1h-1zM25 15h1v1h-1zM26 15h1v1h-1zM27 15h1v1h-1zM28 15h1v1h-1zM5 16h1v1h-1zM6 16h1v1h-1zM7 16h1v1h-1zM8 16h1v1h-1zM9 16h1v1h-1zM10 16h1v1h-1zM15 16h1v1h-1zM20 16h1v1h-1zM22 16h1v1h-1zM28 16h1v1h-1zM4 17h1v1h-1zM6 17h1v1h-1zM11 17h1v1h-1zM12 17h1v1h-1zM13 17h1v1h-1zM16 17h1v1h-1zM17 17h1v1h-1zM19 17h1v1h-1zM20 17h1v1h-1zM21 17h1v1h-1zM24 17h1v1h-1zM27 17h1v1h-1zM4 18h1v1h-1zM5 18h1v1h-1zM8 18h1v1h-1zM10 18h1v1h-1zM11 18h1v1h-1zM12 18h1v1h-1zM14 18h1v1h-1zM17 18h1v1h-1zM19 18h1v1h-1zM20 18h1v1h-1zM24 18h1v1h-1zM25 18h1v1h-1zM26 18h1v1h-1zM27 18h1v1h-1zM28 18h1v1h-1zM4 19h1v1h-1zM6 19h1v1h-1zM7 19h1v1h-1zM8 19h1v1h-1zM12 19h1v1h-1zM16 19h1v1h-1zM18 19h1v1h-1zM19 19h1v1h-1zM23 19h1v1h-1zM25 19h1v1h-1zM26 19h1v1h-1zM28 19h1v1h-1zM4 20h1v1h-1zM6 20h1v1h-1zM7 20h1v1h-1zM9 20h1v1h-1zM10 20h1v1h-1zM12 20h1v1h-1zM13 20h1v1h-1zM14 20h1v1h-1zM15 20h1v1h-1zM16 20h1v1h-1zM17 20h1v1h-1zM20 20h1v1h-1zM21 20h1v1h-1zM22 20h1v1h-1zM23 20h1v1h-1zM24 20h1v1h-1zM26 20h1v1h-1zM27 20h1v1h-1zM12 21h1v1h-1zM13 21h1v1h-1zM14 21h1v1h-1zM15 21h1v1h-1zM18 21h1v1h-1zM20 21h1v1h-1zM24 21h1v1h-1zM26 21h1v1h-1zM27 21h1v1h-1zM4 22h1v1h-1zM5 22h1v1h-1zM6 22h1v1h-1zM7 22h1v1h-1zM8 22h1v1h-1zM9 22h1v1h-1zM10 22h1v1h-1zM12 22h1v1h-1zM13 22h1v1h-1zM16 22h1v1h-1zM17 22h1v1h-1zM18 22h1v1h-1zM20 22h1v1h-1zM22 22h1v1h-1zM24 22h1v1h-1zM28 22h1v1h-1zM4 23h1v1h-1zM10 23h1v1h-1zM12 23h1v1h-1zM13 23h1v1h-1zM14 23h1v1h-1zM15 23h1v1h-1zM17 23h1v1h-1zM18 23h1v1h-1zM20 23h1v1h-1zM24 23h1v1h-1zM4 24h1v1h-1zM6 24h1v1h-1zM7 24h1v1h-1zM8 24h1v1h-1zM10 24h1v1h-1zM12 24h1v1h-1zM13 24h1v1h-1zM15 24h1v1h-1zM17 24h1v1h-1zM19 24h1v1h-1zM20 24h1v1h-1zM21 24h1v1h-1zM22 24h1v1h-1zM23 24h1v1h-1zM24 24h1v1h-1zM27 24h1v1h-1zM28 24h1v1h-1zM4 25h1v1h-1zM6 25h1v1h-1zM7 25h1v1h-1zM8 25h1v1h-1zM10 25h1v1h-1zM12 25h1v1h-1zM16 25h1v1h-1zM17 25h1v1h-1zM18 25h1v1h-1zM20 25h1v1h-1zM21 25h1v1h-1zM22 25h1v1h-1zM27 25h1v1h-1zM28 25h1v1h-1zM4 26h1v1h-1zM6 26h1v1h-1zM7 26h1v1h-1zM8 26h1v1h-1zM10 26h1v1h-1zM14 26h1v1h-1zM15 26h1v1h-1zM17 26h1v1h-1zM21 26h1v1h-1zM24 26h1v1h-1zM25 26h1v1h-1zM26 26h1v1h-1zM27 26h1v1h-1zM28 26h1v1h-1zM4 27h1v1h-1zM10 27h1v1h-1zM15 27h1v1h-1zM16 27h1v1h-1zM17 27h1v1h-1zM19 27h1v1h-1zM21 27h1v1h-1zM23 27h1v1h-1zM24 27h1v1h-1zM26 27h1v1h-1zM27 27h1v1h-1zM28 27h1v1h-1zM4 28h1v1h-1zM5 28h1v1h-1zM6 28h1v1h-1zM7 28h1v1h-1zM8 28h1v1h-1zM9 28h1v1h-1zM10 28h1v1h-1zM12 28h1v1h-1zM14 28h1v1h-1zM15 28h1v1h-1zM16 28h1v1h-1zM17 28h1v1h-1zM20 28h1v1h-1zM22 28h1v1h-1zM25 28h1v1h-1zM28 28h1v1h-1z" fill="#12151C"/></svg>
+    <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:30px; color:#358730">sqzit.in/btcpp</p>
+  </div>
+  <div style="position:absolute; bottom:64px; left:128px; width:1664px; display:flex; flex-direction:row; gap:48px; justify-content:space-between">
+    <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:28px">ngx-l402.org</p>
+    <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:28px">github.com/ngx-l402/ngx-l402</p>
+    <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:28px; color:#3a3a30">nostr: dhananjay@ngx-l402.org</p>
+  </div>
+  </section>
+</div>
+<div id="bar"><button id="prev" aria-label="Previous slide">←</button><span id="pos"></span><button id="next" aria-label="Next slide">→</button></div>
+<script>
+const s=[...document.querySelectorAll('#stage>section')],st=document.getElementById('stage'),pos=document.getElementById('pos');
+let i=0;
+function fit(){const k=Math.min(innerWidth/1920,innerHeight/1080);st.style.transform='scale('+k+') translate(-50%,-50%)'}
+function go(n){i=Math.max(0,Math.min(s.length-1,n));s.forEach((e,j)=>e.classList.toggle('on',j===i));pos.textContent=(i+1)+' / '+s.length;history.replaceState(null,'','#'+(i+1))}
+addEventListener('resize',fit);
+addEventListener('keydown',e=>{if(['ArrowRight','PageDown',' '].includes(e.key))go(i+1);else if(['ArrowLeft','PageUp'].includes(e.key))go(i-1);else if(e.key==='Home')go(0);else if(e.key==='End')go(s.length-1)});
+document.getElementById('prev').onclick=()=>go(i-1);document.getElementById('next').onclick=()=>go(i+1);
+let x0=null;addEventListener('touchstart',e=>x0=e.touches[0].clientX,{passive:true});
+addEventListener('touchend',e=>{if(x0===null)return;const d=e.changedTouches[0].clientX-x0;if(Math.abs(d)>40)go(i+(d<0?1:-1));x0=null});
+fit();go((parseInt(location.hash.slice(1))||1)-1);
+</script>
+</body>
+</html>
